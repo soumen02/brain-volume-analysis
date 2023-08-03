@@ -5,6 +5,10 @@
 # This script analyzes and plots the volume data of a patient. 
 # It takes as input a CSV file containing the volume data of a patient and outputs a PDF file containing the plots.
 
+# Usage 
+# # python3 volume_analysis.py -i ~/Downloads/tp1_samseg.stats -a 61 -g M -i ~/Downloads/tp2_samseg.stats -a 62 -g M -o Opth0001_dementia
+
+
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
@@ -285,4 +289,3 @@ def main():
 if __name__ == "__main__":
     main()
 
-# ~/Downloads/tp1_samseg.stats -a 61 -g M -i ~/Downloads/tp2_samseg.stats -a 62 -g M -o Opth0001_dementia
