@@ -36,6 +36,11 @@ def load_data(file_path):
     df['age'] = df['age'] / 12  # Convert age from months to years
     df['age'] = (df['age'] // 5) * 5  # Convert age to half decades
 
+
+    # calculate the total brain volume
+
+    df = calculate_Total_Brain_Volume(df)
+
     return df
 
 import re
@@ -53,6 +58,12 @@ def extract_features(file_name):
                 feature_value = float(parts[1])
                 feature_dict[feature_name] = feature_value
     return feature_dict
+
+### Make changes to this formula to calculate the total brain volume 
+# look at variable 'feature_labels' for the names of the features
+def calculate_Total_Brain_Volume(df):
+    df['Total_Brain_Volume'] = df['Left_Cerebral_Cortex'] + df['Right_Cerebral_Cortex'] + df['Left_Cerebral_White_Matter'] + df['Right_Cerebral_White_Matter']
+    return df
 
 def create_distribution_plots(df, axs):
     """Creates age and sex distribution plots."""
@@ -76,7 +87,9 @@ def get_percentile_values(df_gender, feature, percentile):
 def plot_percentiles(ax, smoothed_values, percentile, color):
     """Plot the smoothed percentiles on the given axes."""
     ax.plot(smoothed_values[:, 0], smoothed_values[:, 1], linewidth=1.0, color=color, alpha=0.5, linestyle='--')
-    ax.text(smoothed_values[-1, 0], smoothed_values[-1, 1], f'{percentile}', va='center', color=color)
+    # Add legend for the percentile within the plot itself instead of at the top of the figure 
+    ax.text(smoothed_values[-1, 0], smoothed_values[-1, 1], f'{percentile}th', color=color, fontsize=8)
+
 
 def plot_patient_data(ax, patient_data_list, feature, gender):
     """Plot the patient data if available and gender matches."""
@@ -123,10 +136,32 @@ def create_percentile_plots(df, feature, percentiles, color_dict, ax, gender, pa
         if len(patient_ages) > 0:
             percent_change = (patient_values[-1] - patient_values[0]) / patient_values[0] * 100
             ax.text(patient_ages[-1] + 1, patient_values[-1], f'{percent_change:.1f}%', va='center', color='green')
+            
+            ### Delete this part if you don't want to crop the x-axis to the patient data
+            try: 
+                # extract the ages from patient_ages which is a list in the format [age1, age2, age3, ...]
+                minage = patient_ages[0]
+                maxage = patient_ages[-1]
+
+                ax.set_xlim(left=minage-5, right=maxage+10)
+            except:
+                pass
+    
+    # Get the current upper limit of the y-axis
+    ymin, ymax = ax.get_ylim()
+
+    # Set the lower limit to 0, keeping the upper limit the same
+    ax.set_ylim(bottom=0, top=ymax*1.2)
+
+
+
+    
+
 
 def create_features_and_labels():
     # Mapping from CSV feature names to display labels
     feature_labels = {
+        'Total_Brain_Volume': 'Total Brain Volume',
         'Left_Cerebral_Cortex': 'Left Cerebral Cortex',
         'Right_Cerebral_Cortex': 'Right Cerebral Cortex',
         'Left_Cerebral_White_Matter': 'Left Cerebral White Matter',
@@ -193,12 +228,11 @@ def main():
             patient_data = extract_features(input_file)
             patient_data['age'] = age
             patient_data['sex'] = gender
+            calculate_Total_Brain_Volume(patient_data)
             patient_data_list.append(patient_data)
 
     # Create a DataFrame from the patient data
     timepoint_data = pd.DataFrame.from_dict([patient_data_list[0], patient_data_list[1]])
-
-
 
     # Transpose the DataFrame and set the index as the features
     timepoint_data = timepoint_data.transpose()
@@ -212,7 +246,9 @@ def main():
     # Drop the original unnamed columns
     timepoint_data = timepoint_data[['Timepoint 1', 'Timepoint 2']]
 
-    withlesions = features + ['Lesions']
+    extraFeatures = ['Total_Brain_Volume', 'Lesions']
+
+    withlesions = extraFeatures + features
 
     timepoint_data = timepoint_data.reindex(withlesions)
 
@@ -244,11 +280,15 @@ def main():
             ax.set_title('Lesions')
             ax.set_ylabel('Volume (mm$^3$)')
             ax.grid(color='grey', linestyle='-', linewidth=0.25, alpha=0.3)
+                    # Get the current upper limit of the y-axis
+            ymin, ymax = ax.get_ylim()
+
+            # Set the lower limit to 0, keeping the upper limit the same
+            ax.set_ylim(bottom=0, top=ymax*1.2)
             # write the percentage change on the plot 
             ax.annotate(f"{percentagechange}%", xy=(1, timepoint_data.loc['Lesions']['Timepoint 2']), xytext=(8, 0), textcoords='offset points', color='green', fontsize=16)
             pdf.savefig(fig)
             plt.close(fig)
-
 
         # Other pages with percentile plots
         for gender in ['M', 'F']:
@@ -259,6 +299,7 @@ def main():
                 for j in range(4):
                     if i + j < len(features):
                         create_percentile_plots(df, features[i + j], percentiles, color_dict, axs[j], gender, patient_data_list)
+                        
 
                         feature_name_csv = features[i + j]
                         feature_label = feature_labels.get(feature_name_csv, feature_name_csv)  # Use the CSV name as a fallback
