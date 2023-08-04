@@ -154,10 +154,6 @@ def create_percentile_plots(df, feature, percentiles, color_dict, ax, gender, pa
     ax.set_ylim(bottom=0, top=ymax*1.2)
 
 
-
-    
-
-
 def create_features_and_labels():
     # Mapping from CSV feature names to display labels
     feature_labels = {
