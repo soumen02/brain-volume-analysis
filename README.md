@@ -18,5 +18,6 @@ python3 volume_analysis.py -i input_file1 -a age1 -g gender1 -i input_file2 -a a
 - -g, --gender: Gender of the patient (M or F)
 - -o, --output: Output PDF file name (default "analysis")
 
-### Sample Files 
-[Sample input file](Sample Output/Opth0001_dementia.pdf)
+
+### Sample Output 
+[Plots PDF](Sample Output/Opth0001_dementia.pdf)
