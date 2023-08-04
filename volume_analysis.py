@@ -6,7 +6,7 @@
 # It takes as input a CSV file containing the volume data of a patient and outputs a PDF file containing the plots.
 
 # Usage 
-# # python3 volume_analysis.py -i ~/Downloads/tp1_samseg.stats -a 61 -g M -i ~/Downloads/tp2_samseg.stats -a 62 -g M -o Opth0001_dementia
+# python3 volume_analysis.py -i ~/Downloads/tp1_samseg.stats -a 61 -g M -i ~/Downloads/tp2_samseg.stats -a 62 -g M -o Opth0001_dementia
 
 
 import pandas as pd
@@ -68,6 +68,7 @@ def create_distribution_plots(df, axs):
     axs[1].set_xlabel('Age (in decades)')
     axs[1].set_ylabel('Frequency')
     axs[1].grid(color='grey', linestyle='-', linewidth=0.25, alpha=0.5)
+
 def get_percentile_values(df_gender, feature, percentile):
     """Calculate the percentile values for the given feature and percentile."""
     return df_gender.groupby('age')[feature].apply(lambda x: np.percentile(x, percentile))
@@ -123,56 +124,7 @@ def create_percentile_plots(df, feature, percentiles, color_dict, ax, gender, pa
             percent_change = (patient_values[-1] - patient_values[0]) / patient_values[0] * 100
             ax.text(patient_ages[-1] + 1, patient_values[-1], f'{percent_change:.1f}%', va='center', color='green')
 
-
-def main():
-    # Parse arguments
-    args = parse_args()
-
-    file_path = 'baseline.csv'
-    df = load_data(file_path)
-
-    if df is None:
-        return
-
-    # features = df.columns[3:]
-
-    features = [
-        'Left_Cerebral_Cortex',
-        'Right_Cerebral_Cortex',
-        'Left_Cerebral_White_Matter',
-        'Right_Cerebral_White_Matter',
-        'Left_Cerebellum_Cortex',
-        'Right_Cerebellum_Cortex',
-        'Left_Cerebellum_White_Matter',
-        'Right_Cerebellum_White_Matter',
-        'Left_Hippocampus',
-        'Right_Hippocampus',
-        'Left_Amygdala',
-        'Right_Amygdala',
-        'Left_VentralDC',
-        'Right_VentralDC',
-        'Left_Putamen',
-        'Right_Putamen',
-        'Left_Accumbens_area',
-        'Right_Accumbens_area',
-        'Brain_Stem',
-        'Right_Pallidum',
-        'Left_Caudate',
-        'Right_Thalamus',
-        'Left_Pallidum',
-        'Right_Caudate',
-        'Left_Thalamus',
-        'Right_Thalamus',
-        'Left_Lateral_Ventricle',
-        'Right_Lateral_Ventricle',
-        'Left_Inf_Lat_Vent',
-        'Right_Inf_Lat_Vent',
-        'x3rd_Ventricle', 
-        'x4th_Ventricle', 
-        'x5th_Ventricle',
-        'CSF'
-    ]
-
+def create_features_and_labels():
     # Mapping from CSV feature names to display labels
     feature_labels = {
         'Left_Cerebral_Cortex': 'Left Cerebral Cortex',
@@ -210,6 +162,19 @@ def main():
         'x5th_Ventricle': '5th Ventricle',
         'CSF': 'CSF',
     }
+    return list(feature_labels.keys()), feature_labels
+
+def main():
+    # Parse arguments
+    args = parse_args()
+
+    file_path = 'baseline.csv'
+    df = load_data(file_path)
+
+    if df is None:
+        return
+
+    features, feature_labels = create_features_and_labels()
 
     # Mapping from CSV gender values to display labels
     gender_labels = {
@@ -233,8 +198,11 @@ def main():
     # Create a DataFrame from the patient data
     timepoint_data = pd.DataFrame.from_dict([patient_data_list[0], patient_data_list[1]])
 
+
+
     # Transpose the DataFrame and set the index as the features
     timepoint_data = timepoint_data.transpose()
+    # print(timepoint_data[0])
     timepoint_data.index.name = 'Feature'
 
     # Convert the two columns to numeric, excluding any non-numeric rows, and store in new columns
@@ -244,8 +212,9 @@ def main():
     # Drop the original unnamed columns
     timepoint_data = timepoint_data[['Timepoint 1', 'Timepoint 2']]
 
-    # Reorder the DataFrame according to the features list
-    timepoint_data = timepoint_data.reindex(features)
+    withlesions = features + ['Lesions']
+
+    timepoint_data = timepoint_data.reindex(withlesions)
 
     # Calculate the percentage change, fixing the parentheses
     timepoint_data['Percentage Change'] = ((timepoint_data['Timepoint 2'] - timepoint_data['Timepoint 1']) / timepoint_data['Timepoint 1']) * 100
@@ -264,6 +233,23 @@ def main():
         pdf.savefig(fig)
         plt.close(fig)
 
+        # Plot for Lesions if available
+        if 'Lesions' in timepoint_data.index:
+            # drop the percentage change column in order to plot the lesions
+            percentagechange = timepoint_data.loc['Lesions']['Percentage Change']
+            timepoint_data = timepoint_data.drop(columns=['Percentage Change'])
+
+            fig, ax = plt.subplots(figsize=(10, 5))
+            ax.plot(['Timepoint 1', 'Timepoint 2'], timepoint_data.loc['Lesions'], marker='x', color='green', linewidth=2, markersize=10, label='Lesions', linestyle='dashed', markeredgewidth=2, markeredgecolor='green', markerfacecolor='white', alpha=0.8, zorder=3, clip_on=False, solid_capstyle='round', dash_capstyle='round')
+            ax.set_title('Lesions')
+            ax.set_ylabel('Volume (mm$^3$)')
+            ax.grid(color='grey', linestyle='-', linewidth=0.25, alpha=0.3)
+            # write the percentage change on the plot 
+            ax.annotate(f"{percentagechange}%", xy=(1, timepoint_data.loc['Lesions']['Timepoint 2']), xytext=(8, 0), textcoords='offset points', color='green', fontsize=16)
+            pdf.savefig(fig)
+            plt.close(fig)
+
+
         # Other pages with percentile plots
         for gender in ['M', 'F']:
             for i in range(0, len(features), 4):
@@ -280,7 +266,7 @@ def main():
                         axs[j].set_title(f'{feature_label} for {gender_label}')
                         # axs[j].set_title(f'{features[i + j]} for {gender}')
                         axs[j].set_xlabel('Age (years)')
-                        axs[j].set_ylabel('Volume (mm^3))')
+                        axs[j].set_ylabel('Volume (mm$^3$)')
                         axs[j].grid(color='grey', linestyle='-', linewidth=0.25, alpha=0.3)
 
                 pdf.savefig(fig)
