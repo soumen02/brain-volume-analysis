@@ -211,8 +211,7 @@ def main():
     gender_labels = {
         'M': 'Males',
         'F': 'Females',
-    }
-
+    }       
 
     percentiles = [5, 25, 50, 75, 95]
     color_dict = {5: 'orange', 25: 'darkorange', 50: 'red', 75: 'darkorange', 95: 'orange'}
@@ -226,6 +225,13 @@ def main():
             patient_data['sex'] = gender
             calculate_Total_Brain_Volume(patient_data)
             patient_data_list.append(patient_data)
+
+    if len(patient_data_list) == 2:
+        gender1 = patient_data_list[0]['sex']
+        gender2 = patient_data_list[1]['sex']
+
+    if gender1 != gender2:
+        raise ValueError("The genders of the two timepoints are different! Make sure you are comparing the same patient.")
 
     # Create a DataFrame from the patient data
     timepoint_data = pd.DataFrame.from_dict([patient_data_list[0], patient_data_list[1]])
@@ -287,7 +293,7 @@ def main():
             plt.close(fig)
 
         # Other pages with percentile plots
-        for gender in ['M', 'F']:
+        for gender in patient_data['sex']:
             for i in range(0, len(features), 4):
                 fig, axs = plt.subplots(2, 2, figsize=(15, 10))
                 axs = axs.flatten()
