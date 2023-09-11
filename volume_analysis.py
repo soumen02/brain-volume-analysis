@@ -226,6 +226,10 @@ def main():
             calculate_Total_Brain_Volume(patient_data)
             patient_data_list.append(patient_data)
 
+    # if there are more two or more patient files sort them by age
+    if len(patient_data_list) > 1:
+        patient_data_list.sort(key=lambda x: x['age'])
+
     # if two files are not input retirn an error
     if len(patient_data_list) != 2:
         raise ValueError("Two .stat patient files are required.")
