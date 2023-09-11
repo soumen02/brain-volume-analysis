@@ -226,6 +226,10 @@ def main():
             calculate_Total_Brain_Volume(patient_data)
             patient_data_list.append(patient_data)
 
+    # if two files are not input retirn an error
+    if len(patient_data_list) != 2:
+        raise ValueError("Two .stat patient files are required.")
+
     if len(patient_data_list) == 2:
         gender1 = patient_data_list[0]['sex']
         gender2 = patient_data_list[1]['sex']
