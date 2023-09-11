@@ -133,7 +133,7 @@ def create_percentile_plots(df, feature, percentiles, color_dict, ax, gender, pa
             ax.plot(patient_ages, patient_values, color='green', linestyle='-', linewidth=1.5)
 
         # Show percentage change in feature value
-        if len(patient_ages) > 0:
+        if len(patient_ages) > 1:
             percent_change = (patient_values[-1] - patient_values[0]) / patient_values[0] * 100
             ax.text(patient_ages[-1] + 1, patient_values[-1], f'{percent_change:.1f}%', va='center', color='green')
             
@@ -226,82 +226,50 @@ def main():
             calculate_Total_Brain_Volume(patient_data)
             patient_data_list.append(patient_data)
 
-    # if there are more two or more patient files sort them by age
-    if len(patient_data_list) > 1:
-        patient_data_list.sort(key=lambda x: x['age'])
+    # Determine the number of input files (zero, one, or two)
+    num_input_files = len(patient_data_list)
 
-    # if two files are not input retirn an error
-    if len(patient_data_list) != 2:
-        raise ValueError("Two .stat patient files are required.")
+    if num_input_files == 0:
+        # No input files: Print percentile plots for both genders
 
-    if len(patient_data_list) == 2:
-        gender1 = patient_data_list[0]['sex']
-        gender2 = patient_data_list[1]['sex']
-
-        if gender1 != gender2:
-            raise ValueError("The genders of the two timepoints are different! Make sure you are comparing the same patient.")
-
-    # Create a DataFrame from the patient data
-    timepoint_data = pd.DataFrame.from_dict([patient_data_list[0], patient_data_list[1]])
-
-    # Transpose the DataFrame and set the index as the features
-    timepoint_data = timepoint_data.transpose()
-    # print(timepoint_data[0])
-    timepoint_data.index.name = 'Feature'
-
-    # Convert the two columns to numeric, excluding any non-numeric rows, and store in new columns
-    timepoint_data['Timepoint 1'] = pd.to_numeric(timepoint_data[0], errors='coerce')
-    timepoint_data['Timepoint 2'] = pd.to_numeric(timepoint_data[1], errors='coerce')
-
-    # Drop the original unnamed columns
-    timepoint_data = timepoint_data[['Timepoint 1', 'Timepoint 2']]
-
-    extraFeatures = ['Total_Brain_Volume', 'Lesions']
-
-    withlesions = extraFeatures + features
-
-    timepoint_data = timepoint_data.reindex(withlesions)
-
-    # Calculate the percentage change, fixing the parentheses
-    timepoint_data['Percentage Change'] = ((timepoint_data['Timepoint 2'] - timepoint_data['Timepoint 1']) / timepoint_data['Timepoint 1']) * 100
-
-    # round the percentage change to 1 decimal place
-    timepoint_data['Percentage Change'] = timepoint_data['Percentage Change'].round(1)
-
-    # Save the DataFrame to an Excel file
-    timepoint_data.to_excel(f"{args.output_file}.xlsx")
-
-
-    with PdfPages(f"{args.output_file}.pdf") as pdf:
-        # First page with age and sex distribution
-        fig, axs = plt.subplots(1, 2, figsize=(15, 7.5))
-        create_distribution_plots(df, axs)
-        pdf.savefig(fig)
-        plt.close(fig)
-
-        # Plot for Lesions if available
-        if 'Lesions' in timepoint_data.index:
-            # drop the percentage change column in order to plot the lesions
-            percentagechange = timepoint_data.loc['Lesions']['Percentage Change']
-            timepoint_data = timepoint_data.drop(columns=['Percentage Change'])
-
-            fig, ax = plt.subplots(figsize=(10, 5))
-            ax.plot(['Timepoint 1', 'Timepoint 2'], timepoint_data.loc['Lesions'], marker='x', color='green', linewidth=2, markersize=10, label='Lesions', linestyle='dashed', markeredgewidth=2, markeredgecolor='green', markerfacecolor='white', alpha=0.8, zorder=3, clip_on=False, solid_capstyle='round', dash_capstyle='round')
-            ax.set_title('Lesions')
-            ax.set_ylabel('Volume (mm$^3$)')
-            ax.grid(color='grey', linestyle='-', linewidth=0.25, alpha=0.3)
-                    # Get the current upper limit of the y-axis
-            ymin, ymax = ax.get_ylim()
-
-            # Set the lower limit to 0, keeping the upper limit the same
-            ax.set_ylim(bottom=0, top=ymax*1.2)
-            # write the percentage change on the plot 
-            ax.annotate(f"{percentagechange}%", xy=(1, timepoint_data.loc['Lesions']['Timepoint 2']), xytext=(8, 0), textcoords='offset points', color='green', fontsize=16)
+        with PdfPages(f"{args.output_file}.pdf") as pdf:
+            # First page with age and sex distribution
+            fig, axs = plt.subplots(1, 2, figsize=(15, 7.5))
+            create_distribution_plots(df, axs)
             pdf.savefig(fig)
             plt.close(fig)
 
-        # Other pages with percentile plots
-        for gender in patient_data['sex']:
+            for gender in ['M', 'F']:
+                for i in range(0, len(features), 4):
+                    fig, axs = plt.subplots(2, 2, figsize=(15, 10))
+                    axs = axs.flatten()
+
+                    for j in range(4):
+                        if i + j < len(features):
+                            create_percentile_plots(df, features[i + j], percentiles, color_dict, axs[j], gender)
+                            
+                            feature_name_csv = features[i + j]
+                            feature_label = feature_labels.get(feature_name_csv, feature_name_csv)
+                            gender_label = gender_labels.get(gender, gender)
+                            axs[j].set_title(f'{feature_label} for {gender_label}')
+                            axs[j].set_xlabel('Age (years)')
+                            axs[j].set_ylabel('Volume (mm$^3$)')
+                            axs[j].grid(color='grey', linestyle='-', linewidth=0.25, alpha=0.3)
+
+                    pdf.savefig(fig)
+                    plt.close(fig)
+
+    elif num_input_files == 1:
+        # One input file: Plot a single point on percentile plots
+        gender = patient_data_list[0]['sex']
+
+        with PdfPages(f"{args.output_file}.pdf") as pdf:
+            # First page with age and sex distribution
+            fig, axs = plt.subplots(1, 2, figsize=(15, 7.5))
+            create_distribution_plots(df, axs)
+            pdf.savefig(fig)
+            plt.close(fig)
+
             for i in range(0, len(features), 4):
                 fig, axs = plt.subplots(2, 2, figsize=(15, 10))
                 axs = axs.flatten()
@@ -309,19 +277,113 @@ def main():
                 for j in range(4):
                     if i + j < len(features):
                         create_percentile_plots(df, features[i + j], percentiles, color_dict, axs[j], gender, patient_data_list)
-                        
-
+                            
                         feature_name_csv = features[i + j]
-                        feature_label = feature_labels.get(feature_name_csv, feature_name_csv)  # Use the CSV name as a fallback
-                        gender_label = gender_labels.get(gender, gender)  # Use the CSV value as a fallback
+                        feature_label = feature_labels.get(feature_name_csv, feature_name_csv)
+                        gender_label = gender_labels.get(gender, gender)
                         axs[j].set_title(f'{feature_label} for {gender_label}')
-                        # axs[j].set_title(f'{features[i + j]} for {gender}')
                         axs[j].set_xlabel('Age (years)')
                         axs[j].set_ylabel('Volume (mm$^3$)')
                         axs[j].grid(color='grey', linestyle='-', linewidth=0.25, alpha=0.3)
 
                 pdf.savefig(fig)
                 plt.close(fig)
+
+
+    elif num_input_files == 2:
+
+        patient_data_list.sort(key=lambda x: x['age'])
+
+        gender1 = patient_data_list[0]['sex']
+        gender2 = patient_data_list[1]['sex']
+
+        if gender1 != gender2:
+            raise ValueError("The genders of the two timepoints are different! Make sure you are comparing the same patient.")
+
+        # Create a DataFrame from the patient data
+        timepoint_data = pd.DataFrame.from_dict([patient_data_list[0], patient_data_list[1]])
+
+        # Transpose the DataFrame and set the index as the features
+        timepoint_data = timepoint_data.transpose()
+        # print(timepoint_data[0])
+        timepoint_data.index.name = 'Feature'
+
+        # Convert the two columns to numeric, excluding any non-numeric rows, and store in new columns
+        timepoint_data['Timepoint 1'] = pd.to_numeric(timepoint_data[0], errors='coerce')
+        timepoint_data['Timepoint 2'] = pd.to_numeric(timepoint_data[1], errors='coerce')
+
+        # Drop the original unnamed columns
+        timepoint_data = timepoint_data[['Timepoint 1', 'Timepoint 2']]
+
+        extraFeatures = ['Total_Brain_Volume', 'Lesions']
+
+        withlesions = extraFeatures + features
+
+        timepoint_data = timepoint_data.reindex(withlesions)
+
+        # Calculate the percentage change, fixing the parentheses
+        timepoint_data['Percentage Change'] = ((timepoint_data['Timepoint 2'] - timepoint_data['Timepoint 1']) / timepoint_data['Timepoint 1']) * 100
+
+        # round the percentage change to 1 decimal place
+        timepoint_data['Percentage Change'] = timepoint_data['Percentage Change'].round(1)
+
+        # Save the DataFrame to an Excel file
+        timepoint_data.to_excel(f"{args.output_file}.xlsx")
+
+
+        with PdfPages(f"{args.output_file}.pdf") as pdf:
+            # First page with age and sex distribution
+            fig, axs = plt.subplots(1, 2, figsize=(15, 7.5))
+            create_distribution_plots(df, axs)
+            pdf.savefig(fig)
+            plt.close(fig)
+
+            # Plot for Lesions if available
+            if 'Lesions' in timepoint_data.index:
+                # drop the percentage change column in order to plot the lesions
+                percentagechange = timepoint_data.loc['Lesions']['Percentage Change']
+                timepoint_data = timepoint_data.drop(columns=['Percentage Change'])
+
+                fig, ax = plt.subplots(figsize=(10, 5))
+                ax.plot(['Timepoint 1', 'Timepoint 2'], timepoint_data.loc['Lesions'], marker='x', color='green', linewidth=2, markersize=10, label='Lesions', linestyle='dashed', markeredgewidth=2, markeredgecolor='green', markerfacecolor='white', alpha=0.8, zorder=3, clip_on=False, solid_capstyle='round', dash_capstyle='round')
+                ax.set_title('Lesions')
+                ax.set_ylabel('Volume (mm$^3$)')
+                ax.grid(color='grey', linestyle='-', linewidth=0.25, alpha=0.3)
+                        # Get the current upper limit of the y-axis
+                ymin, ymax = ax.get_ylim()
+
+                # Set the lower limit to 0, keeping the upper limit the same
+                ax.set_ylim(bottom=0, top=ymax*1.2)
+                # write the percentage change on the plot 
+                ax.annotate(f"{percentagechange}%", xy=(1, timepoint_data.loc['Lesions']['Timepoint 2']), xytext=(8, 0), textcoords='offset points', color='green', fontsize=16)
+                pdf.savefig(fig)
+                plt.close(fig)
+
+            # Other pages with percentile plots
+            for gender in patient_data['sex']:
+                for i in range(0, len(features), 4):
+                    fig, axs = plt.subplots(2, 2, figsize=(15, 10))
+                    axs = axs.flatten()
+
+                    for j in range(4):
+                        if i + j < len(features):
+                            create_percentile_plots(df, features[i + j], percentiles, color_dict, axs[j], gender, patient_data_list)
+                            
+
+                            feature_name_csv = features[i + j]
+                            feature_label = feature_labels.get(feature_name_csv, feature_name_csv)  # Use the CSV name as a fallback
+                            gender_label = gender_labels.get(gender, gender)  # Use the CSV value as a fallback
+                            axs[j].set_title(f'{feature_label} for {gender_label}')
+                            # axs[j].set_title(f'{features[i + j]} for {gender}')
+                            axs[j].set_xlabel('Age (years)')
+                            axs[j].set_ylabel('Volume (mm$^3$)')
+                            axs[j].grid(color='grey', linestyle='-', linewidth=0.25, alpha=0.3)
+
+                    pdf.savefig(fig)
+                    plt.close(fig)
+
+    else:
+        raise ValueError("Too many input files! Please provide only zero, one or two input files.")
 
 if __name__ == "__main__":
     main()
