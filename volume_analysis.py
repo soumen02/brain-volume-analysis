@@ -230,8 +230,8 @@ def main():
         gender1 = patient_data_list[0]['sex']
         gender2 = patient_data_list[1]['sex']
 
-    if gender1 != gender2:
-        raise ValueError("The genders of the two timepoints are different! Make sure you are comparing the same patient.")
+        if gender1 != gender2:
+            raise ValueError("The genders of the two timepoints are different! Make sure you are comparing the same patient.")
 
     # Create a DataFrame from the patient data
     timepoint_data = pd.DataFrame.from_dict([patient_data_list[0], patient_data_list[1]])
