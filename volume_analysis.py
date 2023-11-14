@@ -26,7 +26,7 @@ def parse_args():
     return parser.parse_args()
 
 def load_data(file_path):
-    """Loads data from the CSV file and processes the 'age' column."""
+    """Loads data from the CSV file"""
     try:
         df = pd.read_csv(file_path)
     except FileNotFoundError:
@@ -36,10 +36,10 @@ def load_data(file_path):
     df['age'] = df['age'] / 12  # Convert age from months to years
     df['age'] = (df['age'] // 5) * 5  # Convert age to half decades
 
-
     # calculate the total brain volume
 
     df = calculate_Total_Brain_Volume(df)
+    df = calculate_Hippocampal_Percentage(df)
 
     return df
 
@@ -63,6 +63,11 @@ def extract_features(file_name):
 # look at variable 'feature_labels' for the names of the features
 def calculate_Total_Brain_Volume(df):
     df['Total_Brain_Volume'] = df['Left_Cerebral_Cortex'] + df['Right_Cerebral_Cortex'] + df['Left_Cerebral_White_Matter'] + df['Right_Cerebral_White_Matter']
+    return df
+
+def calculate_Hippocampal_Percentage(df):
+    df['Left_Hippocampal_Percentage'] = df['Left_Hippocampus'] / (df['Left_Hippocampus'] + df['Left_Inf_Lat_Vent']) * 100
+    df['Right_Hippocampal_Percentage'] = df['Right_Hippocampus'] / (df['Right_Hippocampus'] + df['Right_Inf_Lat_Vent']) * 100
     return df
 
 def create_distribution_plots(df, axs):
@@ -157,6 +162,8 @@ def create_percentile_plots(df, feature, percentiles, color_dict, ax, gender, pa
 def create_features_and_labels():
     # Mapping from CSV feature names to display labels
     feature_labels = {
+        'Left_Hippocampal_Percentage': 'Left Hippocampal Percentage',
+        'Right_Hippocampal_Percentage': 'Right Hippocampal Percentage',
         'Total_Brain_Volume': 'Total Brain Volume',
         'Left_Cerebral_Cortex': 'Left Cerebral Cortex',
         'Right_Cerebral_Cortex': 'Right Cerebral Cortex',
@@ -224,6 +231,7 @@ def main():
             patient_data['age'] = age
             patient_data['sex'] = gender
             calculate_Total_Brain_Volume(patient_data)
+            calculate_Hippocampal_Percentage(patient_data)
             patient_data_list.append(patient_data)
 
     # Determine the number of input files (zero, one, or two)
